@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LED Display Rate Calculator</title>
+  <style>
+    :root {
+      --primary: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --success: #15803d;
+      --accent: #0284c7;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --danger-border: #f87171;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 12px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 12px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    .status-bar { font-size: 0.75rem; text-align: center; margin-bottom: 10px; color: var(--muted); }
+    .status-bar.online { color: var(--success); font-weight: 600; }
+    
+    .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .tab-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px; background: #e2e8f0; padding: 3px; border-radius: 8px; }
+    .tab-btn { padding: 8px 4px; font-size: 0.8rem; font-weight: 600; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--muted); }
+    .tab-btn.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* Side Toggle Control */
+    .sides-toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      margin-bottom: 14px;
+    }
+    .sides-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sides-options {
+      display: flex;
+      gap: 6px;
+    }
+    .side-pill {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .side-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 1px 3px rgba(29, 78, 216, 0.3);
+    }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; }
+    input, select { width: 100%; padding: 9px 10px; font-size: 0.9rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+    
+    .pill-info { font-size: 0.74rem; background: #e0f2fe; color: #0369a1; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; }
+    
+    /* Dedicated Red Alert Box */
+    .alert-danger-box {
+      display: none;
+      background: var(--danger-bg);
+      border: 2px solid var(--danger-border);
+      color: var(--danger);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+    
+    /* SUMMARY CARD STYLES */
+    .summary-card { background: #0f172a; color: #ffffff; border-radius: var(--radius); padding: 16px; }
+    .summary-headline {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #38bdf8;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      word-break: break-word;
+    }
+    .summary-headline.danger {
+      color: #f87171;
+    }
+    
+    .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; margin-bottom: 7px; }
+    .row span:first-child { color: #94a3b8; }
+
+    .calc-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tag-fixed { background: #475569; color: #ffffff; }
+    .tag-sqft { background: #0284c7; color: #ffffff; }
+    .tag-invalid { background: var(--danger); color: #ffffff; }
+
+    .badge-side {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: #334155;
+      color: #e2e8f0;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>LED Display Calculator</h1>
+    <div id="sheet-status" class="status-bar">Connecting to Google Sheet...</div>
+  </header>
+
+  <div class="card">
+    <div class="tab-group">
+      <button class="tab-btn active" onclick="setCategory('scrolling')">Scrolling</button>
+      <button class="tab-btn" onclick="setCategory('videowall')">Video Wall</button>
+      <button class="tab-btn" onclick="setCategory('standee')">Standee</button>
+    </div>
+
+    <!-- Display Side Selector -->
+    <div class="sides-toggle-container">
+      <span class="sides-label">Display Side:</span>
+      <div class="sides-options">
+        <button type="button" class="side-pill active" id="btn-side-single" onclick="setSide('single')">Single Side</button>
+        <button type="button" class="side-pill" id="btn-side-double" onclick="setSide('double')">Double Side</button>
+      </div>
+    </div>
+
+    <!-- 1. SCROLLING TEXT -->
+    <div id="section-scrolling">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Pitch</label>
+          <select id="sc-pitch" disabled>
+            <option value="P10">P10 (Standard 320mm × 160mm)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Color Group</label>
+          <select id="sc-color" onchange="calculate()">
+            <option value="RED">Red</option>
+            <option value="OTHER">Other (White / Green / Amber / Yellow)</option>
+            <option value="RGB">RGB (Full Color)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Width (Modules per side)</label>
+          <input type="number" id="sc-mod-w" min="1" value="3" oninput="calculate()" />
+        </div>
+        <div class="form-group">
+          <label>Height (Modules per side)</label>
+          <input type="number" id="sc-mod-h" min="1" value="1" oninput="calculate()" />
+        </div>
+      </div>
+
+      <div class="pill-info">
+        <strong>P10 Module:</strong> 1 module = 1 ft × 0.5 ft. Slabs for &le; 5x2. 6x2, 7x2, 8x2 & &ge; 8 sq. ft. calculate per sq ft as per color tier.
+      </div>
+    </div>
+
+    <!-- 2. VIDEO WALL -->
+    <div id="section-videowall" style="display:none;">
+      <div id="vw-alert-box" class="alert-danger-box">
+        ⚠ MINIMUM ORDER SIZE FOR VIDEO WALL IS 8 SQ. FT. RATE NOT APPLICABLE!
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Environment</label>
+          <select id="vw-env" onchange="renderVWPitches()">
+            <option value="Indoor">Indoor</option>
+            <option value="Outdoor">Outdoor</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pixel Pitch & Series</label>
+          <select id="vw-pitch" onchange="renderVWModuleSizes()"></select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Module Dimension</label>
+          <select id="vw-module-dim" onchange="calculate()"></select>
+        </div>
+        <div class="form-group">
+          <label>Pricing Option</label>
+          <select id="vw-rate-type" onchange="calculate()">
+            <option value="base">Standard Rate</option>
+            <option value="offer">Special Offer Rate</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Modules Width</label>
+          <input type="number" id="vw-mod-w" min="1" value="4" oninput="calculate()" />
+        </div>
+        <div class="form-group">
+          <label>Modules Height</label>
+          <input type="number" id="vw-mod-h" min="1" value="4" oninput="calculate()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. STANDEE DISPLAY -->
+    <div id="section-standee" style="display:none;">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Standee Type</label>
+          <select id="standee-type" onchange="renderStandeeModels()">
+            <option value="LED">LED Standee</option>
+            <option value="LCD">LCD Commercial</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Model & Spec</label>
+          <select id="standee-model" onchange="calculate()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Applied Rate</label>
+        <select id="standee-rate-type" onchange="calculate()">
+          <option value="base">Standard Rate</option>
+          <option value="offer">Special Offer Rate</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY PANEL -->
+  <div class="summary-card">
+    <div class="summary-headline" id="out-headline">
+      Calculating...
+    </div>
+
+    <div class="row">
+      <span>Calculation Type:</span>
+      <span id="out-method-label">-</span>
+    </div>
+
+    <div class="row">
+      <span>Side Configuration:</span>
+      <span id="out-side-type" class="badge-side">Single Side</span>
+    </div>
+
+    <div class="row">
+      <span>Nominal Size (Ft Basis):</span>
+      <span id="out-nominal-size">-</span>
+    </div>
+
+    <div class="row">
+      <span>Actual Physical Size:</span>
+      <span id="out-actual-size">-</span>
+    </div>
+
+    <div class="row">
+      <span>Surface Area:</span>
+      <span id="out-total-sqft">-</span>
+    </div>
+
+    <div class="row">
+      <span>Modules Matrix:</span>
+      <span id="out-matrix">-</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-REPLACE_WITH_YOUR_ID/pub?output=csv";
+
+  let currentCategory = "scrolling";
+  let currentSide = "single";
+
+  // Fixed Slabs Matrix (< 8 sq ft standard dimensions)
+  const scrollingSlabs = {
+    "RED": {
+      "2x1": { single: 3850, double: 6900 },
+      "3x1": { single: 5000, double: 8500 },
+      "4x1": { single: 6000, double: 9500 },
+      "5x1": { single: 7200, double: 11500 },
+      "6x1": { single: 8400, double: 13500 },
+      "3x2": { single: 7800, double: 12500 },
+      "4x2": { single: 8500, double: 14000 },
+      "5x2": { single: 9500, double: 18000 }
+    },
+    "OTHER": {
+      "2x1": { single: 4000, double: 7100 },
+      "3x1": { single: 5100, double: 8500 },
+      "4x1": { single: 6200, double: 10000 },
+      "5x1": { single: 7500, double: 12000 },
+      "6x1": { single: 8700, double: 14000 },
+      "3x2": { single: 8000, double: 13000 },
+      "4x2": { single: 9000, double: 14500 },
+      "5x2": { single: 10000, double: 18000 }
+    },
+    "RGB": {
+      "2x1": { single: 4500, double: 8000 },
+      "3x1": { single: 6500, double: 11000 },
+      "4x1": { single: 7500, double: 12500 },
+      "5x1": { single: 9000, double: 14500 },
+      "6x1": { single: 10000, double: 17000 },
+      "3x2": { single: 9000, double: 15500 },
+      "4x2": { single: 10000, double: 17000 },
+      "5x2": { single: 14000, double: 27000 }
+    }
+  };
+
+  const pricingData = {
+    videowall: [
+      { env: "Indoor", pitch: "P2 - Pro Max", base: 7000, offer: 6700, baseDouble: 13300, offerDouble: 12700 },
+      { env: "Indoor", pitch: "P2.5 - Pro", base: 6500, offer: 6200, baseDouble: 12350, offerDouble: 11800 },
+      { env: "Indoor", pitch: "P4 - Pro", base: 5500, offer: 5200, baseDouble: 10450, offerDouble: 9900 },
+      { env: "Outdoor", pitch: "P2.5 - Pro Max", base: 12000, offer: 11500, baseDouble: 22800, offerDouble: 21850 },
+      { env: "Outdoor", pitch: "P3 - Pro Max", base: 9500, offer: 9000, baseDouble: 18050, offerDouble: 17100 },
+      { env: "Outdoor", pitch: "P4 - Pro Max", base: 6500, offer: 6200, baseDouble: 12350, offerDouble: 11800 }
+    ],
+    standee: [
+      { type: "LED", model: "P2 Standee", spec: "2x4 ft Fixed Size (LED)", base: 75000, offer: 72000, baseDouble: 135000, offerDouble: 130000 },
+      { type: "LCD", model: "43 Inch LCD", spec: "43 Inch Commercial 4K", base: 32000, offer: 29500, baseDouble: 58000, offerDouble: 54000 },
+      { type: "LCD", model: "55 Inch LCD", spec: "55 Inch Commercial 4K", base: 45000, offer: 41000, baseDouble: 82000, offerDouble: 75000 }
+    ]
+  };
+
+  function setSide(side) {
+    currentSide = side;
+    document.getElementById("btn-side-single").classList.toggle("active", side === "single");
+    document.getElementById("btn-side-double").classList.toggle("active", side === "double");
+    calculate();
+  }
+
+  async function fetchSheetData() {
+    const statusEl = document.getElementById("sheet-status");
+    if (!SHEET_CSV_URL || SHEET_CSV_URL.includes("REPLACE_WITH_YOUR_ID")) {
+      statusEl.textContent = "● Loaded updated price list";
+      statusEl.classList.add("online");
+      return;
+    }
+    try {
+      const res = await fetch(SHEET_CSV_URL);
+      if (!res.ok) throw new Error("Offline");
+      const text = await res.text();
+      parseCSV(text);
+      statusEl.textContent = "● Live Google Sheet Connected";
+      statusEl.classList.add("online");
+    } catch (e) {
+      statusEl.textContent = "● Offline Mode (Default Rates)";
+    }
+  }
+
+  function parseCSV(text) {
+    const rows = text.split("\n").map(r => r.trim()).filter(Boolean);
+    rows.forEach(row => {
+      const cols = row.split(",").map(c => c.trim().replace(/^"|"$/g, ''));
+      const type = cols[0];
+
+      if (type === "VW") {
+        const entry = pricingData.videowall.find(v => v.env === cols[1] && v.pitch === cols[2]);
+        if (entry) {
+          entry.base = parseFloat(cols[3]);
+          entry.offer = parseFloat(cols[4]);
+          if (cols[5]) entry.baseDouble = parseFloat(cols[5]);
+          if (cols[6]) entry.offerDouble = parseFloat(cols[6]);
+        }
+      } else if (type === "STANDEE") {
+        const entry = pricingData.standee.find(s => s.model === cols[2]);
+        if (entry) {
+          entry.base = parseFloat(cols[4]);
+          entry.offer = parseFloat(cols[5]);
+          if (cols[6]) entry.baseDouble = parseFloat(cols[6]);
+          if (cols[7]) entry.offerDouble = parseFloat(cols[7]);
+        }
+      } else if (type === "SCROLL_MATRIX") {
+        // SCROLL_MATRIX, ColorGroup, Matrix, SingleRate, DoubleRate
+        const grp = cols[1].toUpperCase();
+        const matrix = cols[2];
+        if (scrollingSlabs[grp] && scrollingSlabs[grp][matrix]) {
+          scrollingSlabs[grp][matrix].single = parseFloat(cols[3]);
+          scrollingSlabs[grp][matrix].double = parseFloat(cols[4]);
+        }
+      }
+    });
+    initUI();
+  }
+
+  function setCategory(cat) {
+    currentCategory = cat;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    event.target.classList.add("active");
+
+    document.getElementById("section-scrolling").style.display = cat === "scrolling" ? "block" : "none";
+    document.getElementById("section-videowall").style.display = cat === "videowall" ? "block" : "none";
+    document.getElementById("section-standee").style.display = cat === "standee" ? "block" : "none";
+
+    calculate();
+  }
+
+  function renderVWPitches() {
+    const env = document.getElementById("vw-env").value;
+    const pitchSelect = document.getElementById("vw-pitch");
+    pitchSelect.innerHTML = "";
+
+    const available = pricingData.videowall.filter(v => v.env === env);
+    available.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.pitch;
+      opt.textContent = item.pitch;
+      pitchSelect.appendChild(opt);
+    });
+    renderVWModuleSizes();
+  }
+
+  function renderVWModuleSizes() {
+    const pitch = document.getElementById("vw-pitch").value;
+    const dimSelect = document.getElementById("vw-module-dim");
+    dimSelect.innerHTML = "";
+
+    const optStd = document.createElement("option");
+    optStd.value = "320x160";
+    optStd.textContent = "320mm × 160mm (Standard)";
+    dimSelect.appendChild(optStd);
+
+    if (pitch.includes("P3") || pitch.includes("P6")) {
+      const optSq = document.createElement("option");
+      optSq.value = "192x192";
+      optSq.textContent = "192mm × 192mm (Square)";
+      dimSelect.appendChild(optSq);
+    }
+    calculate();
+  }
+
+  function renderStandeeModels() {
+    const type = document.getElementById("standee-type").value;
+    const modelSelect = document.getElementById("standee-model");
+    modelSelect.innerHTML = "";
+
+    const filtered = pricingData.standee.filter(s => s.type === type);
+    filtered.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.model;
+      opt.textContent = `${s.model} - ${s.spec}`;
+      modelSelect.appendChild(opt);
+    });
+    calculate();
+  }
+
+  function formatFoot(val) {
+    return val % 1 === 0 ? val.toString() : val.toFixed(1);
+  }
+
+  function calculate() {
+    if (currentCategory === "scrolling") calculateScrolling();
+    else if (currentCategory === "videowall") calculateVideoWall();
+    else if (currentCategory === "standee") calculateStandee();
+  }
+
+  function calculateScrolling() {
+    const color = document.getElementById("sc-color").value; // RED, OTHER, RGB
+    let modW = parseInt(document.getElementById("sc-mod-w").value) || 1;
+    let modH = parseInt(document.getElementById("sc-mod-h").value) || 1;
+
+    let totalModulesOneSide = modW * modH;
+    if (totalModulesOneSide < 2) {
+      modW = 2; modH = 1;
+      document.getElementById("sc-mod-w").value = 2;
+      document.getElementById("sc-mod-h").value = 1;
+      totalModulesOneSide = 2;
+    }
+
+    const isDouble = currentSide === "double";
+    const totalPhysicalModules = isDouble ? totalModulesOneSide * 2 : totalModulesOneSide;
+
+    const nominalW_ft = modW * 1.0;
+    const nominalH_ft = modH * 0.5;
+    const nominalSqFtPerSide = nominalW_ft * nominalH_ft; // 1 mod = 0.5 sq ft
+
+    const actualW_mm = modW * 320;
+    const actualH_mm = modH * 160;
+    const actualW_ft = actualW_mm / 304.8;
+    const actualH_ft = actualH_mm / 304.8;
+    const exactSqFtPerSide = actualW_ft * actualH_ft;
+
+    let totalPrice = 0;
+    let isSqFtCalc = false;
+    const matrixKey = `${modW}x${modH}`;
+
+    // Specific pricing rules for Red / Other / RGB
+    if (color === "RED" || color === "OTHER") {
+      const slabData = scrollingSlabs[color][matrixKey];
+
+      if (matrixKey === "6x2" || matrixKey === "7x2" || matrixKey === "8x2") {
+        if (!isDouble) {
+          // Single side fixed slab
+          if (matrixKey === "6x2") totalPrice = 11500;
+          else if (matrixKey === "7x2") totalPrice = 13500;
+          else if (matrixKey === "8x2") totalPrice = 14400;
+          isSqFtCalc = false;
+        } else {
+          // Double side calculated per sq ft
+          const ratePerSqFt = (matrixKey === "8x2") ? 1800 : 1850;
+          totalPrice = Math.round(exactSqFtPerSide * ratePerSqFt);
+          isSqFtCalc = true;
+        }
+      } else if (slabData) {
+        // Standard slabs (<= 5x2)
+        totalPrice = isDouble ? slabData.double : slabData.single;
+        isSqFtCalc = false;
+      } else {
+        // Custom or >= 8 Sq. Ft based on 8x2 rate
+        if (nominalSqFtPerSide >= 8.0) {
+          const ratePerSqFt = isDouble ? 1800 : 900; // 14400 / 16 mod(8 sqft) = 900
+          totalPrice = Math.round(exactSqFtPerSide * ratePerSqFt);
+          isSqFtCalc = true;
+        } else {
+          // Fallback interpolation for irregular <= 8 sqft
+          const basePerMod = isDouble ? 1700 : 950;
+          totalPrice = Math.round(totalModulesOneSide * basePerMod);
+          isSqFtCalc = false;
+        }
+      }
+    } else if (color === "RGB") {
+      const slabData = scrollingSlabs["RGB"][matrixKey];
+
+      if (matrixKey === "6x2" || matrixKey === "7x2") {
+        // 6x2 & 7x2 both single and double are in per sq ft
+        const ratePerSqFt = isDouble ? 2700 : 2800;
+        totalPrice = Math.round(exactSqFtPerSide * ratePerSqFt);
+        isSqFtCalc = true;
+      } else if (matrixKey === "8x2") {
+        // 8x2 both single and double are in per sq ft
+        const ratePerSqFt = isDouble ? 2600 : 2700;
+        totalPrice = Math.round(exactSqFtPerSide * ratePerSqFt);
+        isSqFtCalc = true;
+      } else if (slabData) {
+        // Standard slabs (<= 5x2)
+        totalPrice = isDouble ? slabData.double : slabData.single;
+        isSqFtCalc = false;
+      } else {
+        // Dimensions >= 8 sq ft based on 8x2 rate (2700 single, 2600 double)
+        if (nominalSqFtPerSide >= 8.0) {
+          const ratePerSqFt = isDouble ? 2600 : 2700;
+          totalPrice = Math.round(exactSqFtPerSide * ratePerSqFt);
+          isSqFtCalc = true;
+        } else {
+          // Fallback interpolation for irregular <= 8 sq ft
+          const basePerMod = isDouble ? 2700 : 1400;
+          totalPrice = Math.round(totalModulesOneSide * basePerMod);
+          isSqFtCalc = false;
+        }
+      }
+    }
+
+    const sideText = isDouble ? "Double Side" : "Single Side";
+    const sizeStr = `${formatFoot(nominalW_ft)} ft x ${formatFoot(nominalH_ft)} ft`;
+    const colorLabel = color === "OTHER" ? "White/Amber/Green" : color;
+
+    document.getElementById("out-headline").textContent = `P10 ${colorLabel} ${sizeStr} (${sideText}) - ₹${totalPrice.toLocaleString("en-IN")}`;
+    document.getElementById("out-method-label").innerHTML = isSqFtCalc ? `<span class="calc-tag tag-sqft">Sq Ft</span>` : `<span class="calc-tag tag-fixed">Fixed</span>`;
+    document.getElementById("out-side-type").textContent = sideText;
+    document.getElementById("out-nominal-size").textContent = `${sizeStr} (${nominalSqFtPerSide.toFixed(2)} Sq. Ft / side)`;
+    document.getElementById("out-actual-size").textContent = `${actualW_mm} × ${actualH_mm} mm (${actualW_ft.toFixed(2)} × ${actualH_ft.toFixed(2)} ft)`;
+    document.getElementById("out-total-sqft").textContent = `${(exactSqFtPerSide * (isDouble ? 2 : 1)).toFixed(2)} Sq. Ft ${isDouble ? '(Combined 2 sides)' : '(Total)'}`;
+    document.getElementById("out-matrix").textContent = `${modW} W × ${modH} H (${totalPhysicalModules} total modules across ${isDouble ? '2 sides' : '1 side'})`;
+  }
+
+  function calculateVideoWall() {
+    const env = document.getElementById("vw-env").value;
+    const pitch = document.getElementById("vw-pitch").value;
+    const dim = document.getElementById("vw-module-dim").value;
+    const rateType = document.getElementById("vw-rate-type").value;
+    const modW = parseInt(document.getElementById("vw-mod-w").value) || 1;
+    const modH = parseInt(document.getElementById("vw-mod-h").value) || 1;
+    const isDouble = currentSide === "double";
+
+    const [mW, mH] = dim === "192x192" ? [192, 192] : [320, 160];
+    const width_mm = modW * mW;
+    const height_mm = modH * mH;
+    const width_ft = width_mm / 304.8;
+    const height_ft = height_mm / 304.8;
+    const actualSqFt = width_ft * height_ft;
+
+    const alertBox = document.getElementById("vw-alert-box");
+    const headline = document.getElementById("out-headline");
+    const methodLabel = document.getElementById("out-method-label");
+    const sideText = isDouble ? "Double Side" : "Single Side";
+
+    document.getElementById("out-side-type").textContent = sideText;
+    document.getElementById("out-nominal-size").textContent = `${width_ft.toFixed(2)} ft × ${height_ft.toFixed(2)} ft`;
+    document.getElementById("out-actual-size").textContent = `${width_mm} × ${height_mm} mm`;
+    document.getElementById("out-matrix").textContent = `${modW} W × ${modH} H (${modW * modH * (isDouble ? 2 : 1)} Total Modules)`;
+
+    if (actualSqFt < 8.0) {
+      alertBox.style.display = "block";
+      alertBox.innerHTML = `⚠ <strong>MINIMUM ORDER SIZE FOR VIDEO WALL IS 8 SQ. FT. (CURRENT: ${actualSqFt.toFixed(2)} SQ. FT) — RATE NOT APPLICABLE</strong>`;
+      
+      headline.classList.add("danger");
+      headline.textContent = `${env} ${pitch} (${sideText}) — Rate Not Applicable`;
+      methodLabel.innerHTML = `<span class="calc-tag tag-invalid">Below 8 Sq. Ft</span>`;
+      document.getElementById("out-total-sqft").innerHTML = `<strong style="color: #f87171;">${actualSqFt.toFixed(2)} Sq. Ft (Under 8 Sq. Ft Min)</strong>`;
+      return;
+    }
+
+    alertBox.style.display = "none";
+    headline.classList.remove("danger");
+
+    const rateEntry = pricingData.videowall.find(v => v.env === env && v.pitch === pitch);
+    let unitRate = 0;
+
+    if (isDouble) {
+      unitRate = rateType === "offer" ? (rateEntry.offerDouble || rateEntry.offer * 1.9) : (rateEntry.baseDouble || rateEntry.base * 1.9);
+    } else {
+      unitRate = rateType === "offer" ? rateEntry.offer : rateEntry.base;
+    }
+
+    const total = Math.round(actualSqFt * unitRate);
+
+    headline.textContent = `${env} ${pitch} (${sideText}) - ₹${total.toLocaleString("en-IN")}`;
+    methodLabel.innerHTML = `<span class="calc-tag tag-sqft">Sq Ft</span>`;
+    document.getElementById("out-total-sqft").textContent = `${(actualSqFt * (isDouble ? 2 : 1)).toFixed(2)} Sq. Ft`;
+  }
+
+  function calculateStandee() {
+    const modelId = document.getElementById("standee-model").value;
+    const rateType = document.getElementById("standee-rate-type").value;
+    const isDouble = currentSide === "double";
+    const item = pricingData.standee.find(s => s.model === modelId);
+
+    if (!item) return;
+
+    let price = 0;
+    if (isDouble) {
+      price = rateType === "offer" ? (item.offerDouble || Math.round(item.offer * 1.8)) : (item.baseDouble || Math.round(item.base * 1.8));
+    } else {
+      price = rateType === "offer" ? item.offer : item.base;
+    }
+
+    const sideText = isDouble ? "Double Side" : "Single Side";
+    const headline = document.getElementById("out-headline");
+    headline.classList.remove("danger");
+
+    headline.textContent = `${item.model} (${sideText}) - ₹${price.toLocaleString("en-IN")}`;
+    document.getElementById("out-method-label").innerHTML = `<span class="calc-tag tag-fixed">Fixed</span>`;
+    document.getElementById("out-side-type").textContent = sideText;
+    document.getElementById("out-nominal-size").textContent = item.spec;
+    document.getElementById("out-actual-size").textContent = "640 × 1280 mm (approx 2×4 ft)";
+    document.getElementById("out-total-sqft").textContent = "Fixed 8.00 Sq. Ft";
+    document.getElementById("out-matrix").textContent = `${item.type} Standee (${sideText})`;
+  }
+
+  function initUI() {
+    renderVWPitches();
+    renderStandeeModels();
+    calculate();
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    initUI();
+    fetchSheetData();
+  });
+</script>
+
+</body>
+</html>
